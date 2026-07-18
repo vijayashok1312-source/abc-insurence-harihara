@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Tally Book — Cattle Insurance Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{
+    --paper:#F1EDE0;
+    --paper-raised:#FAF7EE;
+    --ink:#26331F;
+    --ink-soft:#5B6455;
+    --indigo:#2B4570;
+    --indigo-deep:#1D3054;
+    --mustard:#D9A404;
+    --brick:#B8452F;
+    --green:#4C7A3D;
+    --line:#C9C0A8;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter',sans-serif;
+    padding-bottom:100px;
+    min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums;}
+
+  header{
+    background:var(--indigo-deep);
+    color:var(--paper-raised);
+    padding:22px 18px 26px;
+    position:relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:"";
+    position:absolute; left:0; right:0; bottom:0; height:6px;
+    background:repeating-linear-gradient(90deg,var(--mustard) 0 10px, transparent 10px 20px);
+    opacity:.8;
+  }
+  header h1{
+    font-family:'Fraunces',serif; font-weight:900; font-size:1.5rem;
+    margin:0 0 2px; letter-spacing:.01em;
+  }
+  header p{margin:0; font-size:.82rem; color:#C9D3E4; font-weight:500;}
+
+  .summary{
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:10px; padding:14px; margin-top:-16px;
+  }
+  .stat{
+    background:var(--paper-raised); border:1px solid var(--line);
+    border-radius:var(--radius); padding:12px 10px; text-align:center;
+    box-shadow:0 2px 0 rgba(38,51,31,.05);
+  }
+  .stat .num{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:1.1rem;}
+  .stat .lbl{font-size:.65rem; color:var(--ink-soft); margin-top:2px; text-transform:uppercase; letter-spacing:.04em;}
+  .stat.pending .num{color:var(--brick);}
+  .stat.paid .num{color:var(--green);}
+
+  .toolbar{
+    display:flex; gap:8px; padding:0 14px 10px; align-items:center;
+  }
+  .search{
+    flex:1; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--paper-raised); font-size:.9rem; color:var(--ink);
+  }
+  .search:focus{outline:2px solid var(--indigo); outline-offset:1px;}
+
+  .filter-bar{padding:0 14px 10px;}
+  .filter-dates{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;}
+  .filter-dates input{
+    padding:9px 10px; border-radius:9px; border:1px solid var(--line);
+    background:var(--paper-raised); font-size:.8rem; color:var(--ink); font-family:'Inter',sans-serif;
+  }
+  .filter-presets{display:flex; gap:6px; flex-wrap:wrap;}
+  .preset-chip{
+    border:1px solid var(--line); background:var(--paper-raised); color:var(--ink-soft);
+    border-radius:16px; padding:6px 12px; font-size:.72rem; font-weight:600; cursor:pointer;
+  }
+  .preset-chip.active{background:var(--indigo); color:#fff; border-color:var(--indigo);}
+
+  main{padding:0 14px;}
+
+  .date-badge{
+    font-size:.68rem; color:var(--ink-soft); background:#EAE4D2; border-radius:6px;
+    padding:3px 7px; font-family:'IBM Plex Mono',monospace; white-space:nowrap; flex-shrink:0;
+  }
+  .code-badge{
+    font-size:.68rem; color:#fff; background:var(--indigo); border-radius:4px;
+    padding:2px 5px; font-family:'IBM Plex Mono',monospace; margin-right:5px;
+  }
+
+  .card{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    margin-bottom:14px;
+    padding:14px 16px 16px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  }
+  .card-top{display:flex; justify-content:space-between; gap:10px; align-items:flex-start;}
+  .village-name{font-family:'Fraunces',serif; font-weight:700; font-size:1.05rem; margin:0 0 2px;}
+  .head-line{font-size:.8rem; color:var(--ink-soft); margin:0;}
+  .head-line a{color:var(--indigo); text-decoration:none; font-weight:600;}
+  .edit-btn{
+    border:none; background:transparent; color:var(--ink-soft); font-size:.72rem;
+    font-weight:600; cursor:pointer; padding:6px 4px; flex-shrink:0;
+  }
+
+  .tally{font-size:.8rem; letter-spacing:1px; color:var(--indigo); margin:8px 0 10px;}
+  .tally .n{color:var(--ink-soft); font-family:'Inter',sans-serif; letter-spacing:0;}
+
+  .chip-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .chip{
+    border:none; border-radius:20px; padding:7px 12px; font-size:.75rem; font-weight:600;
+    cursor:pointer; display:flex; align-items:center; gap:5px;
+  }
+  .chip.on{background:#E1EBDB; color:var(--green);}
+  .chip.off{background:#F3E3DC; color:var(--brick);}
+
+  .pay-row{
+    display:flex; justify-content:space-between; align-items:center;
+    border-top:1px solid #E7E1D0; padding-top:10px; margin-top:2px;
+  }
+  .pay-status{border:none; border-radius:10px; padding:8px 12px; font-size:.78rem; font-weight:700; cursor:pointer;}
+  .pay-status.unpaid{background:#F3E3DC; color:var(--brick);}
+  .pay-status.partial{background:#FBEBC7; color:#8A6A00;}
+  .pay-status.paid{background:#E1EBDB; color:var(--green);}
+  .pay-amt{text-align:right;}
+  .pay-amt .total{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:.95rem;}
+  .pay-amt .rem{font-size:.68rem; color:var(--brick); font-weight:600;}
+
+  .empty{text-align:center; padding:50px 20px; color:var(--ink-soft);}
+  .empty h2{font-family:'Fraunces',serif; color:var(--ink); font-size:1.2rem;}
+
+  .fab-row{
+    position:fixed; bottom:0; left:0; right:0;
+    background:linear-gradient(to top, var(--paper) 60%, transparent);
+    padding:16px 14px 18px; display:flex; gap:10px; z-index:40;
+  }
+  .btn-primary{
+    flex:1; background:var(--indigo-deep); color:#fff; border:none;
+    padding:15px; border-radius:12px; font-size:.95rem; font-weight:700;
+    font-family:'Inter',sans-serif; cursor:pointer;
+    box-shadow:0 4px 12px rgba(29,48,84,.25);
+  }
+  .btn-secondary{
+    background:var(--paper-raised); color:var(--ink); border:1px solid var(--line);
+    padding:15px 16px; border-radius:12px; font-weight:600; cursor:pointer; font-size:.85rem;
+  }
+  .btn-danger{
+    background:#F3E3DC; color:var(--brick); border:none;
+    padding:13px 16px; border-radius:12px; font-weight:600; cursor:pointer; font-size:.82rem;
+  }
+
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(38,51,31,.45);
+    display:flex; align-items:flex-end; z-index:50;
+  }
+  .modal{
+    background:var(--paper); width:100%; border-radius:20px 20px 0 0;
+    padding:20px 18px 24px; max-height:90vh; overflow-y:auto;
+    animation:slideup .18s ease-out;
+  }
+  @keyframes slideup{from{transform:translateY(20px); opacity:0} to{transform:translateY(0); opacity:1}}
+  .modal h2{font-family:'Fraunces',serif; margin:0 0 14px; font-size:1.15rem;}
+  label{display:block; font-size:.75rem; font-weight:600; color:var(--ink-soft); margin:12px 0 5px; text-transform:uppercase; letter-spacing:.03em;}
+  input,select{
+    width:100%; padding:12px 13px; border-radius:10px; border:1px solid var(--line);
+    background:var(--paper-raised); font-size:.95rem; font-family:'Inter',sans-serif; color:var(--ink);
+  }
+  input:focus,select:focus{outline:2px solid var(--indigo); outline-offset:1px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .toggle-group{display:flex; gap:8px; margin-top:4px;}
+  .toggle-opt{
+    flex:1; padding:11px; border-radius:10px; border:1px solid var(--line);
+    background:var(--paper-raised); text-align:center; font-size:.85rem; font-weight:600;
+    cursor:pointer; color:var(--ink-soft);
+  }
+  .toggle-opt.active{background:var(--indigo); color:#fff; border-color:var(--indigo);}
+  .modal-actions{display:flex; gap:10px; margin-top:20px;}
+  .modal-actions .btn-secondary{flex:1; text-align:center;}
+  .modal-actions .btn-primary{flex:2;}
+
+  .toast{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:20px;
+    font-size:.82rem; z-index:100; opacity:0; pointer-events:none; transition:opacity .25s;
+  }
+  .toast.show{opacity:1;}
+  .loading{text-align:center; padding:60px 20px; color:var(--ink-soft);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tally Book</h1>
+  <p>Cattle insurance tracker — by village</p>
+</header>
+
+<div class="summary" id="summary"></div>
+
+<div class="toolbar">
+  <input class="search" id="search" placeholder="Search village, code, secretary, or phone..." />
+  <button class="btn-secondary" id="exportBtn" style="padding:11px 14px;">Export</button>
+</div>
+
+<div class="filter-bar">
+  <div class="filter-dates">
+    <input type="date" id="dateFrom" aria-label="From date" />
+    <input type="date" id="dateTo" aria-label="To date" />
+  </div>
+  <div class="filter-presets">
+    <button class="preset-chip" data-preset="today">Today</button>
+    <button class="preset-chip" data-preset="week">This week</button>
+    <button class="preset-chip" data-preset="month">This month</button>
+    <button class="preset-chip active" data-preset="all">All time</button>
+  </div>
+</div>
+
+<main id="main">
+  <div class="loading">Loading your records…</div>
+</main>
+
+<div class="fab-row">
+  <button class="btn-primary" id="addBtn">+ New Village Record</button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// Built-in list of 61 database societies extracted from the Excel workbook
+const MASTER_SOCIETIES = [{"code": "24001", "name": "ಜಿಗಳಿ", "sec": "ಶಿವಾನಂದಪ್ಪ", "phone": "9902040174"}, {"code": "24002", "name": "ಕಮಲಾಪುರ", "sec": "ಗಂಗಾಧರ", "phone": "8618994132"}, {"code": "24003", "name": "ಜಿ. ಬೇವಿನಹಳ್ಳಿ", "sec": "ಮಂಜುನಾಥ", "phone": "9632774210"}, {"code": "24004", "name": "ಶಂಷಿಪುರ", "sec": "ಶಾಂತಮ್ಮ", "phone": "7022738095"}, {"code": "24005", "name": "ಬನ್ನಿಕೋಡು", "sec": "ಶಿವನಗೌಡ", "phone": "7760053107"}, {"code": "24006", "name": "ಕೊಕ್ಕನೂರು", "sec": "ಶಾಂತರಾಜ", "phone": "9901770264"}, {"code": "24007", "name": "ಬೆಳ್ಳೋಡಿ", "sec": "ರಾಜಶೇಖರಪ್ಪ", "phone": "9845142213"}, {"code": "24008", "name": "ಭಾನುವಳ್ಳಿ", "sec": "ಬಸವನಗೌಡ", "phone": "8095991800"}, {"code": "24009", "name": "ಹಳ್ಳಿಹಾಳು", "sec": "ಬಸವರಾಜ", "phone": "7353565660"}, {"code": "24010", "name": "ನಂದಿತಾವರೆ", "sec": "ಮಠದ್", "phone": "9880345429"}, {"code": "24011", "name": "ವಿ ಎನ್ ಕ್ಯಾಂಪ್", "sec": "ಅಣ್ಣಪ್ಪ", "phone": "9901321886"}, {"code": "24012", "name": "ಕೆ. ಬೇವಿನಹಳ್ಳಿ", "sec": "ವಿಶ್ವನಾಥ", "phone": "9538470566"}, {"code": "24013", "name": "ನಂದಿಗುಡಿ", "sec": "ನಿಜಲಿಂಗಯ್ಯ", "phone": "9741395665"}, {"code": "24014", "name": "ಹಿಂದಸಘಟ್ಟ", "sec": "ಮಹೇಂದ್ರ", "phone": "6361439965"}, {"code": "24015", "name": "ಸಾಲಕಟ್ಟೆ", "sec": "ಶಿವಕುಮಾರ್", "phone": "9844551990"}, {"code": "24016", "name": "ನಿಟ್ಟೂರು", "sec": "ವೀಣಾ", "phone": "7975087186"}, {"code": "24017", "name": "ಕುಣೆಬೆಳಕೆರೆ", "sec": "ಬಸವರಾಜಪ್ಪ", "phone": "8746918228"}, {"code": "24019", "name": "ನೆಹರೂನಗರ", "sec": "ಹನುಮಂತ", "phone": "7353534695"}, {"code": "24020", "name": "ಹರಳಹಳ್ಳಿ", "sec": "ಕಿರಣ್", "phone": "8147697840"}, {"code": "24021", "name": "ಕದರನಾಯಕನಹಳ್ಳಿ", "sec": "ಮಂಜುನಾಥ", "phone": "9740773450"}, {"code": "24022", "name": "ಹಾಲಿವಾಣ", "sec": "ಅರ್ಪಿತಾ", "phone": "8618986064"}, {"code": "24023", "name": "ಎಳೆಹೊಳೆ", "sec": "ನೀಲನಗೌಡ", "phone": "9980462451"}, {"code": "24024", "name": "ಗೋವಿನಹಾಳು", "sec": "ಬಸವರಾಜ", "phone": "9844336602"}, {"code": "24025", "name": "ಕುಂಬಳೂರು", "sec": "ಮಂಜುನಾಥ", "phone": "9742657506"}, {"code": "24026", "name": "ಯಲವಟ್ಟಿ", "sec": "ಉಮೇಶ", "phone": "9880841440"}, {"code": "24027", "name": "ಬೂದಿಹಾಳು", "sec": "ಚೇತನ", "phone": "8722257511"}, {"code": "24028", "name": "ಬಿಳಸನೂರು", "sec": "ನಾಗರಾಜು", "phone": "9844068995"}, {"code": "24031", "name": "ಕೊಮಾರನಹಳ್ಳಿ", "sec": "ಚಿದಂಬರ", "phone": "9742559249"}, {"code": "24036", "name": "ಹೊಳೆಸಿರಿಗೆರೆ", "sec": "ಮಂಜುನಾಥ", "phone": "6361530345"}, {"code": "24037", "name": "ವಡೆಯರಬಸಾಪುರ", "sec": "ಪ್ರವೀಣ ಕುಮಾರ", "phone": "9741398227"}, {"code": "24039", "name": "ಗುಳದಹಳ್ಳಿ", "sec": "ಚಂದ್ರಶೇಖರ್", "phone": "8073261412"}, {"code": "24040", "name": "ಸಂಕ್ಲಿಪುರ", "sec": "ಲಿಂಗರಾಜು", "phone": "7353673525"}, {"code": "24041", "name": "ಹನಗವಾಡಿ", "sec": "ಮಂಜುನಾಥ", "phone": "6364115480"}, {"code": "24042", "name": "ಹೊಸಪಾಳ್ಯ", "sec": "ಬಸವನಗೌಡ್ರು", "phone": "9740265732"}, {"code": "24044", "name": "ವಾಸನ", "sec": "ಲಕ್ಷ್ಮಣ", "phone": "9620380653"}, {"code": "24045", "name": "ಮಲೆಬೆನ್ನೂರು", "sec": "ನೇತ್ರಾವತಿ", "phone": "7795517155"}, {"code": "24047", "name": "ಗಂಗನರಸಿ", "sec": "ರೇಣುಕಮ್ಮ", "phone": "9902495830"}, {"code": "24048", "name": "ಅಮರಾವತಿ", "sec": "ಪವಿತ್ರ", "phone": "9741072542"}, {"code": "24051", "name": "ಹಳೆಪಾಳ್ಯ", "sec": "ಶೋಭ", "phone": "7829676629"}, {"code": "24053", "name": "ನಾಗೇನಹಳ್ಳಿ", "sec": "ಭಾರತಿ", "phone": "8722818497"}, {"code": "24055", "name": "ಕಡ್ಲೆಗುಂದಿ", "sec": "ಚೈತ್ರ", "phone": "8105366285"}, {"code": "24056", "name": "ಸಾರಥಿ", "sec": "ವಿನಯ್", "phone": "9606781429"}, {"code": "24057", "name": "ದೀಟೂರು", "sec": "ರುದ್ರಮ್ಮ", "phone": "9902293851"}, {"code": "24058", "name": "ದೇವರಬೆಳಕೆರೆ", "sec": "ರಾಧ", "phone": "9113690686"}, {"code": "24059", "name": "ಸಲಗನಹಳ್ಳಿ", "sec": "ವಿಜಯಾ", "phone": "9743929360"}, {"code": "24060", "name": "ಬ್ಯಾಲದಹಳ್ಳಿ", "sec": "ಬಸವರಾಜ", "phone": "9880601277"}, {"code": "24061", "name": "ನಂದಿಗಾವಿ", "sec": "ಸುನಿತಾ", "phone": "9108936691"}, {"code": "24062", "name": "ಉಕ್ಕಡಗಾತ್ರಿ", "sec": "ಸುಮಂಗಳಾ", "phone": "9606130741"}, {"code": "24063", "name": "ಕೊಂಡಜ್ಜಿ", "sec": "ಉಮಾ ಆರ್", "phone": "9972535846"}, {"code": "24064", "name": "ಕೆಂಚನಹಳ್ಳಿ", "sec": "ರೇಖಾ", "phone": "8722794262"}, {"code": "24065", "name": "ರಾಮತೀರ್ಥ", "sec": "ಐಶ್ವರ್ಯ", "phone": "9732025499"}, {"code": "24067", "name": "ಪಾಮೇನಹಳ್ಳಿ", "sec": "ಸಾಕಮ್ಮ", "phone": "8861023878"}, {"code": "24068", "name": "ದೊಗ್ಗಳ್ಳಿ", "sec": "ಬಸಮ್ಮ", "phone": "7026075167"}, {"code": "24069", "name": "ಮೂಗಿನಗುಂದಿ", "sec": "ಕುಬೇರಗೌಡ್ರು", "phone": "9741445262"}, {"code": "24070", "name": "ಬುಳ್ಳಾಪುರ", "sec": "ಅಕ್ಕಮ್ಮ", "phone": "7353420604"}, {"code": "24071", "name": "ರಾಜನಹಳ್ಳಿ", "sec": "ಮಂಜುಳಾ", "phone": "8073679562"}, {"code": "24072", "name": "ಆದಾಪುರ", "sec": "ಹೇಮಾವತಿ", "phone": "6360235556"}, {"code": "24073", "name": "ಕೊಪ್ಪ", "sec": "ಭಾಗ್ಯ", "phone": "9164518732"}, {"code": "24074", "name": "ಮಲ್ಲನಾಯಕನಹಳ್ಳಿ", "sec": "ಮೃತ್ಯುಂಜಯ", "phone": "9902797066"}, {"code": "24075", "name": "ಮಳಲಹಳ್ಳಿ", "sec": "ಶಿಲ್ಪಾ", "phone": "7486929582"}, {"code": "24076", "name": "ಯಕ್ಕೆಗೊಂಡಿ", "sec": "ವೈ ಬಿ ಸವಿತಾ", "phone": "9880601277"}];
+
+const STORAGE_KEY = 'cattle-village-records';
+let records = [];
+let loaded = false;
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+async function loadRecords(){
+  try{
+    const res = localStorage.getItem(STORAGE_KEY);
+    records = res ? JSON.parse(res) : [];
+  }catch(e){
+    records = [];
+  }
+  loaded = true;
+  render();
+}
+
+async function saveRecords(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }catch(e){
+    showToast('Save failed. Local storage is full.');
+  }
+}
+
+function fmtRupee(n){ return '₹' + Number(n||0).toLocaleString('en-IN'); }
+
+function formatDate(iso){
+  if(!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function tallyMarks(n){
+  const groups = Math.floor(n/5);
+  const rem = n % 5;
+  let out = '';
+  for(let i=0;i<groups;i++) out += '\u2f14\u2f14\u2f14\u2f14/ ';
+  out += '|'.repeat(rem);
+  return out.trim() || '—';
+}
+
+function remainingFor(r){
+  if(r.paymentStatus === 'paid') return 0;
+  if(r.paymentStatus === 'partial') return Math.max(0, r.totalAmount - (r.amountPaid||0));
+  return r.totalAmount;
+}
+function collectedFor(r){
+  if(r.paymentStatus === 'paid') return r.totalAmount;
+  if(r.paymentStatus === 'partial') return r.amountPaid||0;
+  return 0;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s){ return String(s).replace(/'/g,"\\'"); }
+
+function getFilteredRecords(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+
+  let filtered = records;
+  if(q){
+    filtered = filtered.filter(r =>
+      r.village.toLowerCase().includes(q) ||
+      (r.code||'').toLowerCase().includes(q) ||
+      r.headName.toLowerCase().includes(q) ||
+      (r.phone||'').includes(q)
+    );
+  }
+  if(dateFrom){ filtered = filtered.filter(r => (r.date||'') >= dateFrom); }
+  if(dateTo){ filtered = filtered.filter(r => (r.date||'') <= dateTo); }
+  return filtered;
+}
+
+function render(){
+  const filtered = getFilteredRecords();
+  renderSummary(filtered);
+  renderList(filtered);
+}
+
+function renderSummary(filtered){
+  const totalCattle = filtered.reduce((s,r)=>s+Number(r.cattleCount||0),0);
+  const pending = filtered.reduce((s,r)=>s+remainingFor(r),0);
+  const collected = filtered.reduce((s,r)=>s+collectedFor(r),0);
+  document.getElementById('summary').innerHTML = `
+    <div class="stat"><div class="num mono">${totalCattle}</div><div class="lbl">Cattle Insured</div></div>
+    <div class="stat pending"><div class="num mono">${fmtRupee(pending)}</div><div class="lbl">Pending</div></div>
+    <div class="stat paid"><div class="num mono">${fmtRupee(collected)}</div><div class="lbl">Collected</div></div>
+  `;
+}
+
+function renderList(filtered){
+  const main = document.getElementById('main');
+
+  if(!loaded){ main.innerHTML = '<div class="loading">Loading your records…</div>'; return; }
+
+  if(filtered.length === 0){
+    main.innerHTML = `<div class="empty">
+      <h2>${records.length===0 ? 'No records logged yet' : 'No matches'}</h2>
+      <p>${records.length===0 ? 'Tap "+ New Village Record" to add your first entry.' : 'Try adjusting your filters.'}</p>
+    </div>`;
+    return;
+  }
+
+  const sorted = [...filtered].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+
+  main.innerHTML = sorted.map(r => {
+    const rem = remainingFor(r);
+    const statusClass = r.paymentStatus === 'paid' ? 'paid' : (r.paymentStatus === 'partial' ? 'partial' : 'unpaid');
+    const statusLabel = r.paymentStatus === 'paid' ? 'Paid ✓' : (r.paymentStatus === 'partial' ? `Partial · ${fmtRupee(r.amountPaid||0)}` : 'Unpaid');
+    return `
+    <div class="card">
+      <div class="card-top">
+        <div>
+          <p class="village-name"><span class="code-badge">${escapeHtml(r.code || '—')}</span>${escapeHtml(r.village)}</p>
+          <p class="head-line">${escapeHtml(r.headName)}${r.phone ? ' · <a href="tel:'+escapeAttr(r.phone)+'">'+escapeHtml(r.phone)+'</a>' : ''}</p>
+        </div>
+        <div style="text-align:right;">
+          <span class="date-badge">${formatDate(r.date)}</span><br/>
+          <button class="edit-btn" onclick="openModal('${r.id}')">Edit</button>
+        </div>
+      </div>
+
+      <div class="tally">${tallyMarks(r.cattleCount)} <span class="n">(${r.cattleCount} cattle insured)</span></div>
+
+      <div class="chip-row">
+        <button class="chip ${r.photosPrinted ? 'on':'off'}" onclick="toggleField('${r.id}','photosPrinted')">
+          ${r.photosPrinted ? '✓' : '✕'} Photos printed
+        </button>
+        <button class="chip ${r.photosReceived ? 'on':'off'}" onclick="toggleField('${r.id}','photosReceived')">
+          ${r.photosReceived ? '✓' : '✕'} Photos received
+        </button>
+      </div>
+
+      <div class="pay-row">
+        <button class="pay-status ${statusClass}" onclick="openPayModal('${r.id}')">${statusLabel}</button>
+        <div class="pay-amt">
+          <div class="total mono">${fmtRupee(r.totalAmount)}</div>
+          ${rem>0 ? `<div class="rem">${fmtRupee(rem)} remaining</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleField(id, field){
+  const r = records.find(x=>x.id===id);
+  if(!r) return;
+  r[field] = !r[field];
+  render();
+  await saveRecords();
+}
+
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('dateFrom').addEventListener('change', ()=>{ setActivePreset('all'); render(); });
+document.getElementById('dateTo').addEventListener('change', ()=>{ setActivePreset('all'); render(); });
+
+function setActivePreset(name){
+  document.querySelectorAll('.preset-chip').forEach(c=>c.classList.toggle('active', c.dataset.preset===name));
+}
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function toISO(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+
+document.querySelectorAll('.preset-chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    const preset = chip.dataset.preset;
+    const today = new Date();
+    const dateFrom = document.getElementById('dateFrom');
+    const dateTo = document.getElementById('dateTo');
+    if(preset === 'today'){
+      dateFrom.value = toISO(today);
+      dateTo.value = toISO(today);
+    }else if(preset === 'week'){
+      const day = today.getDay();
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - ((day + 6) % 7));
+      dateFrom.value = toISO(monday);
+      dateTo.value = toISO(today);
+    }else if(preset === 'month'){
+      const first = new Date(today.getFullYear(), today.getMonth(), 1);
+      dateFrom.value = toISO(first);
+      dateTo.value = toISO(today);
+    }else{
+      dateFrom.value = '';
+      dateTo.value = '';
+    }
+    setActivePreset(preset);
+    render();
+  });
+});
+
+document.getElementById('addBtn').addEventListener('click', ()=>openModal(null));
+
+function openModal(id){
+  const editing = id ? records.find(r=>r.id===id) : null;
+  const r = editing || {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+    code:'', village:'', headName:'', phone:'', cattleCount:1, rate:100,
+    totalAmount:100, photosPrinted:false, photosReceived:false,
+    paymentStatus:'unpaid', amountPaid:0, date: todayStr()
+  };
+
+  // Generate selection drop-down items from Excel list
+  let optionsHtml = '<option value="">-- Select Pre-set Society/Village --</option>';
+  MASTER_SOCIETIES.forEach(soc => {
+    optionsHtml += `<option value="${soc.code}">${soc.code} - ${soc.name} (${soc.sec})</option>`;
+  });
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <h2>${editing ? 'Edit Record' : 'New Village Record'}</h2>
+      <form id="recForm">
+        ${!editing ? `
+          <label for="societyLookup">Quick Auto-Fill from Excel</label>
+          <select id="societyLookup" style="border: 2px solid var(--indigo); margin-bottom: 12px;">
+            ${optionsHtml}
+          </select>
+        ` : ''}
+
+        <label for="code">MPCS Code</label>
+        <input id="code" required value="${escapeAttr(r.code)}" placeholder="e.g. 24001" />
+
+        <label for="village">Village name</label>
+        <input id="village" required value="${escapeAttr(r.village)}" placeholder="Village name" />
+
+        <label for="headName">Secretary / Head name</label>
+        <input id="headName" required value="${escapeAttr(r.headName)}" placeholder="Secretary Name" />
+
+        <label for="phone">Personal Phone number</label>
+        <input id="phone" type="tel" value="${escapeAttr(r.phone)}" placeholder="Mobile number" />
+
+        <label for="visitDate">Date</label>
+        <input id="visitDate" type="date" value="${r.date || todayStr()}" />
+
+        <div class="row2">
+          <div>
+            <label for="cattleCount">Cattle Insured Count</label>
+            <input id="cattleCount" type="number" min="0" value="${r.cattleCount}" />
+          </div>
+          <div>
+            <label for="rate">Rate per animal (₹)</label>
+            <input id="rate" type="number" min="0" value="${r.rate || 100}" />
+          </div>
+        </div>
+
+        <label>Photos printed?</label>
+        <div class="toggle-group">
+          <div class="toggle-opt ${r.photosPrinted ? 'active':''}" data-field="photosPrinted" data-val="true">Yes</div>
+          <div class="toggle-opt ${!r.photosPrinted ? 'active':''}" data-field="photosPrinted" data-val="false">No</div>
+        </div>
+
+        <label>Photos received by head?</label>
+        <div class="toggle-group">
+          <div class="toggle-opt ${r.photosReceived ? 'active':''}" data-field="photosReceived" data-val="true">Yes</div>
+          <div class="toggle-opt ${!r.photosReceived ? 'active':''}" data-field="photosReceived" data-val="false">No</div>
+        </div>
+
+        <div class="modal-actions">
+          ${editing ? '<button type="button" class="btn-danger" id="delBtn">Delete</button>' : '<button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>'}
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) backdrop.remove(); });
+
+  // Handle Drop-down auto fill event logic
+  const lookupSelect = document.getElementById('societyLookup');
+  if (lookupSelect) {
+    lookupSelect.addEventListener('change', (e) => {
+      const selectedCode = e.target.value;
+      const data = MASTER_SOCIETIES.find(s => s.code === selectedCode);
+      if (data) {
+        document.getElementById('code').value = data.code;
+        document.getElementById('village').value = data.name;
+        document.getElementById('headName').value = data.sec;
+        document.getElementById('phone').value = data.phone;
+      }
+    });
+  }
+
+  let state = { photosPrinted: r.photosPrinted, photosReceived: r.photosReceived };
+  backdrop.querySelectorAll('.toggle-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      const field = opt.dataset.field;
+      const val = opt.dataset.val === 'true';
+      state[field] = val;
+      backdrop.querySelectorAll(`.toggle-opt[data-field="${field}"]`).forEach(o=>o.classList.remove('active'));
+      opt.classList.add('active');
+    });
+  });
+
+  const cancelBtn = document.getElementById('cancelBtn');
+  if(cancelBtn) cancelBtn.onclick = () => backdrop.remove();
+
+  const delBtn = document.getElementById('delBtn');
+  if(delBtn) delBtn.onclick = async () => {
+    records = records.filter(x=>x.id !== r.id);
+    backdrop.remove();
+    render();
+    showToast('Record deleted');
+    await saveRecords();
+  };
+
+  document.getElementById('recForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const cattleCount = Number(document.getElementById('cattleCount').value)||0;
+    const rate = Number(document.getElementById('rate').value)||100;
+    const newRec = {
+      id: r.id,
+      code: document.getElementById('code').value.trim(),
+      village: document.getElementById('village').value.trim(),
+      headName: document.getElementById('headName').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      cattleCount, rate,
+      totalAmount: cattleCount * rate,
+      photosPrinted: state.photosPrinted,
+      photosReceived: state.photosReceived,
+      paymentStatus: r.paymentStatus || 'unpaid',
+      amountPaid: r.amountPaid || 0,
+      date: document.getElementById('visitDate').value || r.date || todayStr()
+    };
+    if(!newRec.village || !newRec.headName){ return; }
+    if(newRec.paymentStatus === 'partial' && newRec.amountPaid > newRec.totalAmount){
+      newRec.amountPaid = newRec.totalAmount;
+    }
+    const idx = records.findIndex(x=>x.id===r.id);
+    if(idx >= 0) records[idx] = newRec; else records.push(newRec);
+    backdrop.remove();
+    render();
+    showToast(editing ? 'Record updated' : 'Record saved');
+    await saveRecords();
+  });
+}
+
+function openPayModal(id){
+  const r = records.find(x=>x.id===id);
+  if(!r) return;
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <h2>Payment — ${escapeHtml(r.village)}</h2>
+      <p style="font-size:.85rem;color:var(--ink-soft);margin-top:-8px;">Total due: <strong class="mono">${fmtRupee(r.totalAmount)}</strong></p>
+      <label>Status</label>
+      <div class="toggle-group" id="statusGroup">
+        <div class="toggle-opt ${r.paymentStatus==='unpaid'?'active':''}" data-val="unpaid">Unpaid</div>
+        <div class="toggle-opt ${r.paymentStatus==='partial'?'active':''}" data-val="partial">Partial</div>
+        <div class="toggle-opt ${r.paymentStatus==='paid'?'active':''}" data-val="paid">Paid</div>
+      </div>
+      <div id="partialWrap" style="display:${r.paymentStatus==='partial'?'block':'none'}">
+        <label for="amountPaid">Amount paid so far (₹)</label>
+        <input id="amountPaid" type="number" min="0" max="${r.totalAmount}" value="${r.amountPaid||0}" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="payCancel">Cancel</button>
+        <button type="button" class="btn-primary" id="paySave">Save</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) backdrop.remove(); });
+
+  let status = r.paymentStatus;
+  backdrop.querySelectorAll('#statusGroup .toggle-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      status = opt.dataset.val;
+      backdrop.querySelectorAll('#statusGroup .toggle-opt').forEach(o=>o.classList.remove('active'));
+      opt.classList.add('active');
+      document.getElementById('partialWrap').style.display = status==='partial' ? 'block' : 'none';
+    });
+  });
+
+  document.getElementById('payCancel').onclick = () => backdrop.remove();
+  document.getElementById('paySave').onclick = async () => {
+    r.paymentStatus = status;
+    if(status === 'paid'){ r.amountPaid = r.totalAmount; }
+    else if(status === 'unpaid'){ r.amountPaid = 0; }
+    else{
+      let amt = Number(document.getElementById('amountPaid').value)||0;
+      if(amt > r.totalAmount) amt = r.totalAmount;
+      if(amt < 0) amt = 0;
+      r.amountPaid = amt;
+      if(amt >= r.totalAmount) r.paymentStatus = 'paid';
+      if(amt === 0) r.paymentStatus = 'unpaid';
+    }
+    backdrop.remove();
+    render();
+    showToast('Payment updated');
+    await saveRecords();
+  };
+}
+
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  if(records.length === 0){ showToast('No records to export'); return; }
+  const header = ['Date','MPCS Code','Village','Secretary Name','Phone','No. of Cattle Insured','Rate','Total Amount','Photos Printed','Photos Received','Payment Status','Amount Paid','Remaining'];
+  const rows = records.map(r => [
+    r.date, r.code, r.village, r.headName, r.phone, r.cattleCount, r.rate, r.totalAmount,
+    r.photosPrinted ? 'Yes':'No', r.photosReceived ? 'Yes':'No',
+    r.paymentStatus, collectedFor(r), remainingFor(r)
+  ]);
+  const csv = [header, ...rows].map(row =>
+    row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')
+  ).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cattle-tally-${todayStr()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('Service Worker running'))
+      .catch(err => console.error('Service Worker registration failed', err));
+  });
+}
+
+loadRecords();
+</script>
+</body>
+</html>
